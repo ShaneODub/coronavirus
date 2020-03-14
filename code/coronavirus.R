@@ -4,10 +4,15 @@ install.packages("ggplot2")
 install.packages("tidyverse")
 install.packages("dplyr")
 install.packages("stringr")
+install.packages("directlabels")
+install.packages("gganimate")
+
 library(ggplot2)
 library(tidyr)
 library(dplyr)
 library(stringr)
+library(directlabels)
+library(gganimate)
 
 # Get the data and transform it --------------------------------------------
 
@@ -120,23 +125,58 @@ all_data <-
 # After joining, some countries had no matching regions because the names mismatched.
 # This was then fixed using the long mutate-replace statement above, and the join was
 # done again, successfully.
-#
-# all_data %>%
-#   filter(is.na(region)) %>%
-#   pull(Country.Region) %>%
-#   unique()
+
+all_data %>%
+  filter(is.na(region)) %>%
+  pull(Country.Region) %>%
+  unique()
 #
 # # [1] Bolivia          Brunei           Congo (Kinshasa) Cote d'Ivoire   
 # # [5] Cruise Ship      Iran             Korea, South     Moldova         
 # # [9] Reunion          Russia           Taiwan*          United Kingdom  
 # # [13] US              Vietnam  
 
+# There was no update to the Irish figure for confirmed cases on March 12th - fix it
+all_data <- 
+  all_data %>% 
+  mutate(confirmed = replace(
+    confirmed,
+    Country.Region == 'Ireland' & date == '2020-03-12',
+    as.integer(70))
+  )
 
-
+all_data$active <- all_data$confirmed - all_data$recovered - all_data$deaths
+    
+    
 # Plot the data -----------------------------------------------------------
+
+areas_of_interest <- 
+  all_data %>% 
+  filter(# sub.region == 'Western Europe',
+         region == 'Europe',
+         (as.character(Province.State) == as.character(Country.Region))
+          |as.character(Province.State) == '')
 
 ggplot(all_data %>% filter(Country.Region == 'China',
                            Province.State != 'Hubei'),
-       aes(x = date , y = confirmed, group = Province.State)) +
+       aes(x = date , y = (confirmed - recovered), group = Province.State)) +
   geom_line()
+
+ggplot(all_data %>% filter(Country.Region == 'United Kingdom'),
+       aes(x = date ,
+           y = (confirmed - recovered - deaths),
+           group = Province.State)) +
+  geom_line() +
+  geom_point() +
+  scale_y_log10()
+
+ggplot(data = areas_of_interest,
+       aes(x = date,
+           y = active,
+           group = interaction(Country.Region, Province.State),
+           colour = interaction(Country.Region, Province.State))) +
+  geom_line() +
+  scale_y_log10() +
+  scale_colour_discrete(guide = 'none') +
+  geom_dl(aes(label = Country.Region), method = list(dl.trans(x = x + 0.2), "last.points", cex = 0.6))
 
