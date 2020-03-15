@@ -1,11 +1,11 @@
 
 # Setup and libraries -----------------------------------------------------
-install.packages("ggplot2")
-install.packages("tidyverse")
-install.packages("dplyr")
-install.packages("stringr")
-install.packages("directlabels")
-install.packages("gganimate")
+# install.packages("ggplot2")
+# install.packages("tidyverse")
+# install.packages("dplyr")
+# install.packages("stringr")
+# install.packages("directlabels")
+# install.packages("gganimate")
 
 library(ggplot2)
 library(tidyr)
@@ -146,14 +146,24 @@ all_data <-
   )
 
 all_data$active <- all_data$confirmed - all_data$recovered - all_data$deaths
-    
-    
+
+all_data <- all_data[order(all_data$Country.Region,all_data$Province.State, all_data$date),]
+
+days_since_first_case <- 
+  all_data %>% 
+  group_by(Country.Region, Province.State) %>% 
+  filter(confirmed > 0) %>% 
+  mutate(days_since_first_case = 0:(n() - 1)) %>% View()
+  
+
 # Plot the data -----------------------------------------------------------
 
 areas_of_interest <- 
-  all_data %>% 
+  # all_data %>% 
+  days_since_first_case %>% 
   filter(# sub.region == 'Western Europe',
-         region == 'Europe',
+         # region == 'Europe',
+         Country.Region %in% c('Ireland','France', 'United Kingdom', 'Germany'),
          (as.character(Province.State) == as.character(Country.Region))
           |as.character(Province.State) == '')
 
@@ -171,12 +181,13 @@ ggplot(all_data %>% filter(Country.Region == 'United Kingdom'),
   scale_y_log10()
 
 ggplot(data = areas_of_interest,
-       aes(x = date,
+       aes(# x = date,
+           x = days_since_first_case,
            y = active,
            group = interaction(Country.Region, Province.State),
            colour = interaction(Country.Region, Province.State))) +
   geom_line() +
-  scale_y_log10() +
+  # scale_y_log10() +
   scale_colour_discrete(guide = 'none') +
   geom_dl(aes(label = Country.Region), method = list(dl.trans(x = x + 0.2), "last.points", cex = 0.6))
 
