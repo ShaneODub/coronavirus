@@ -149,45 +149,31 @@ all_data$active <- all_data$confirmed - all_data$recovered - all_data$deaths
 
 all_data <- all_data[order(all_data$Country.Region,all_data$Province.State, all_data$date),]
 
-days_since_first_case <- 
+all_data <- 
   all_data %>% 
   group_by(Country.Region, Province.State) %>% 
   filter(confirmed > 0) %>% 
-  mutate(days_since_first_case = 0:(n() - 1)) %>% View()
+  mutate(days_since_first_case = 0:(n() - 1))
   
 
 # Plot the data -----------------------------------------------------------
 
 areas_of_interest <- 
-  # all_data %>% 
-  days_since_first_case %>% 
+  all_data %>% 
   filter(# sub.region == 'Western Europe',
-         # region == 'Europe',
-         Country.Region %in% c('Ireland','France', 'United Kingdom', 'Germany'),
+         region == 'Europe',
+         # Country.Region %in% c('Ireland','France', 'United Kingdom', 'Germany'),
          (as.character(Province.State) == as.character(Country.Region))
           |as.character(Province.State) == '')
-
-ggplot(all_data %>% filter(Country.Region == 'China',
-                           Province.State != 'Hubei'),
-       aes(x = date , y = (confirmed - recovered), group = Province.State)) +
-  geom_line()
-
-ggplot(all_data %>% filter(Country.Region == 'United Kingdom'),
-       aes(x = date ,
-           y = (confirmed - recovered - deaths),
-           group = Province.State)) +
-  geom_line() +
-  geom_point() +
-  scale_y_log10()
 
 ggplot(data = areas_of_interest,
        aes(# x = date,
            x = days_since_first_case,
-           y = active,
-           group = interaction(Country.Region, Province.State),
-           colour = interaction(Country.Region, Province.State))) +
+           y = confirmed,
+           group = Country.Region,
+           colour = sub.region)) +
   geom_line() +
-  # scale_y_log10() +
+  scale_y_log10() +
   scale_colour_discrete(guide = 'none') +
   geom_dl(aes(label = Country.Region), method = list(dl.trans(x = x + 0.2), "last.points", cex = 0.6))
 
