@@ -19,25 +19,20 @@ library(ggiraph)
 
 # Get the data -----------------------------------------------------------
 
-# confirmed <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv")
-
-# recovered <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv")
-
-# deaths <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv")
-
-# New data structure
+# John Hopkins data
 confirmed <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv")
 
 deaths <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv")
 
-
+# Table of countries, country codes, regions
 countries_regions <- read.csv("https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv")
 names(countries_regions)[1] <- 'Country.Region'
 countries_regions <- countries_regions %>% select(c(1:3,6:8))
 countries_regions$Country.Region <- as.character(countries_regions$Country.Region)
 
 
-# Fix up the data. Join confirmed, recovered, deaths & regions. --------------------
+
+# Fix up the data. --------------------
 
 countries_regions <- 
   countries_regions %>% 
@@ -232,8 +227,10 @@ irish_deaths <-
 
 countries_of_interest <- 
   all_data %>% 
-  filter(max(deaths) >= irish_deaths |
-           max(days_since_first_death) >= 20,
+  filter(region == 'Europe',
+         # max(deaths) >= irish_deaths |
+         #   max(days_since_first_death) >= 20,
+         Province.State == '',
          Country.Region == 'Ireland' |
            (max(deaths) < 100 & date == max(date)) |
               (max(deaths) >= 100 &
@@ -278,3 +275,66 @@ myplot <-
 
 myplot
 girafe(ggobj = myplot, width_svg = 7, height_svg = 4.5)
+
+# Plot with just last 10 days ---------------------------------------------
+
+irish_deaths <-
+  all_data %>%
+  filter(Country.Region == 'Ireland') %>% 
+  pull(deaths) %>% 
+  max()
+
+countries_of_interest <- 
+  all_data %>% 
+  filter(max(deaths) >= irish_deaths |
+           max(days_since_first_death) >= 20)
+
+# Make 'Ireland' the last level of Country.Region for display purposes
+countries_of_interest$Country.Region  <- 
+  countries_of_interest$Country.Region %>% 
+  factor(levels = countries_of_interest$Country.Region %>% 
+           levels() %>% 
+           setdiff('Ireland') %>% 
+           append('Ireland'))
+
+last_10_days <-
+  countries_of_interest %>%
+  filter(date >= max(date) - 9)
+
+last_5_days <-
+  countries_of_interest %>%
+  filter(date >= max(date) - 4)
+
+last_3_days <-
+  countries_of_interest %>%
+  filter(date >= max(date) - 2)
+
+max_point <- 
+  countries_of_interest %>% 
+  filter(date == max(date))
+
+myplot <- 
+  ggplot(data = last_10_days,
+         aes(x = days_since_first_death,
+             y = deaths,
+             group = interaction(Country.Region, Province.State))) +
+  geom_line(aes(colour = Country.Region == 'Ireland')) +
+  geom_point_interactive(data = last_10_days,
+                         aes(fill = Country.Region == 'Ireland',
+                             tooltip = deaths,
+                             data_id = deaths),
+                         shape = 21, size = 1) +
+  geom_point_interactive(data = max_point,
+                         aes(fill = Country.Region == 'Ireland',
+                             tooltip = deaths,
+                             data_id = deaths),
+                         shape = 21, size = 2) +
+  scale_y_log10(breaks = breaks, minor_breaks = minor_breaks,
+                limits = c(1, NA)) +
+  scale_x_continuous(minor_breaks = NULL) +
+  scale_colour_manual(values = c('grey','red'), guide = 'none') +
+  scale_fill_manual(values = c('black', 'red'), guide = 'none') +
+  geom_dl(aes(label = paste(Country.Region, Province.State)),
+          method = list(dl.trans(x = x + 0.2), "last.bumpup", cex = 0.6))
+
+myplot
